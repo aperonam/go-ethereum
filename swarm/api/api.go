@@ -714,10 +714,6 @@ func (self *Api) ResourceHashSize() int {
 	return self.resource.HashSize
 }
 
-func (self *Api) ResourceIsValidated() bool {
-	return self.resource.IsValidated()
-}
-
 func (self *Api) ResolveResourceManifest(addr storage.Address) (storage.Address, error) {
 	trie, err := loadManifest(self.fileStore, addr, nil)
 	if err != nil {

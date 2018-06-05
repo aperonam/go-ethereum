@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/metrics/influxdb"
 	"github.com/ethereum/go-ethereum/swarm/api"
@@ -71,8 +72,20 @@ func NewTestSwarmServer(t *testing.T, serverFunc func(*api.Api) TestServer) *Tes
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// signer
+	privKeyBytes := [32]byte{}
+	privKeyBytes[0] = 0x2a
+	privKey, err := crypto.ToECDSA(privKeyBytes[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer := &mru.GenericSigner{
+		PrivKey: privKey,
+	}
 	rhparams := &mru.HandlerParams{
 		QueryMaxPeriods: &mru.LookupParams{},
+		Signer:          signer,
 		HeaderGetter: &fakeBackend{
 			blocknumber: 42,
 		},
