@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	swarmhash "github.com/ethereum/go-ethereum/swarm/hash"
+	"github.com/ethereum/go-ethereum/swarm/multihash"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/mru"
 )
@@ -365,7 +365,7 @@ func (self *Api) Get(manifestAddr storage.Address, path string) (reader storage.
 				}
 
 				// validate that data as multihash
-				decodedMultihash, err := swarmhash.FromMultihash(rsrcData)
+				decodedMultihash, err := multihash.FromMultihash(rsrcData)
 				if err != nil {
 					apiGetInvalid.Inc(1)
 					status = http.StatusUnprocessableEntity
