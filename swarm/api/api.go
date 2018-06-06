@@ -334,7 +334,8 @@ func (self *Api) Get(manifestAddr storage.Address, path string) (reader storage.
 			log.Trace("resource type", "key", manifestAddr, "hash", entry.Hash)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			rsrc, err := self.resource.Load(storage.Address(common.FromHex(entry.Hash)))
+			metadataChunkKey := storage.Address(common.FromHex(entry.Hash))
+			rsrc, err := self.resource.Load(metadataChunkKey)
 			if err != nil {
 				apiGetNotFound.Inc(1)
 				status = http.StatusNotFound
@@ -343,7 +344,11 @@ func (self *Api) Get(manifestAddr storage.Address, path string) (reader storage.
 			}
 
 			// use this key to retrieve the latest update
-			rsrc, err = self.resource.LookupLatest(ctx, rsrc.NameHash(), true, &mru.LookupParams{})
+			params := &mru.LookupParams{
+				Root: metadataChunkKey,
+			}
+			//rsrc, err = self.resource.LookupLatest(ctx, rsrc.NameHash(), true, &mru.LookupParams{})
+			rsrc, err = self.resource.Lookup(ctx, params)
 			if err != nil {
 				apiGetNotFound.Inc(1)
 				status = http.StatusNotFound
@@ -356,7 +361,8 @@ func (self *Api) Get(manifestAddr storage.Address, path string) (reader storage.
 			if rsrc.Multihash {
 
 				// get the data of the update
-				_, rsrcData, err := self.resource.GetContent(rsrc.NameHash().Hex())
+				//_, rsrcData, err := self.resource.GetContent(rsrc.NameHash().Hex())
+				_, rsrcData, err := self.resource.GetContent(metadataChunkKey)
 				if err != nil {
 					apiGetNotFound.Inc(1)
 					status = http.StatusNotFound
@@ -655,27 +661,29 @@ func (self *Api) BuildDirectoryTree(mhash string, nameresolver bool) (addr stora
 }
 
 // Look up mutable resource updates at specific periods and versions
-func (self *Api) ResourceLookup(ctx context.Context, addr storage.Address, period uint32, version uint32, maxLookup *mru.LookupParams) (string, []byte, error) {
+func (self *Api) ResourceLookup(ctx context.Context, params *mru.LookupParams) (string, []byte, error) {
 	var err error
-	rsrc, err := self.resource.Load(addr)
+	rsrc, err := self.resource.Load(params.Root)
 	if err != nil {
 		return "", nil, err
 	}
-	if version != 0 {
-		if period == 0 {
-			return "", nil, mru.NewError(mru.ErrInvalidValue, "Period can't be 0")
-		}
-		_, err = self.resource.LookupVersion(ctx, rsrc.NameHash(), period, version, true, maxLookup)
-	} else if period != 0 {
-		_, err = self.resource.LookupHistorical(ctx, rsrc.NameHash(), period, true, maxLookup)
-	} else {
-		_, err = self.resource.LookupLatest(ctx, rsrc.NameHash(), true, maxLookup)
-	}
+	//	if version != 0 {
+	//		if period == 0 {
+	//			return "", nil, mru.NewError(mru.ErrInvalidValue, "Period can't be 0")
+	//		}
+	//		_, err = self.resource.LookupVersion(ctx, rsrc.NameHash(), period, version, true, maxLookup)
+	//	} else if period != 0 {
+	//		_, err = self.resource.LookupHistorical(ctx, rsrc.NameHash(), period, true, maxLookup)
+	//	} else {
+	//		_, err = self.resource.LookupLatest(ctx, rsrc.NameHash(), true, maxLookup)
+	//	}
+	_, err = self.resource.Lookup(ctx, params)
 	if err != nil {
 		return "", nil, err
 	}
 	var data []byte
-	_, data, err = self.resource.GetContent(rsrc.NameHash().Hex())
+	//_, data, err = self.resource.GetContent(rsrc.NameHash().Hex())
+	_, data, err = self.resource.GetContent(params.Root)
 	if err != nil {
 		return "", nil, err
 	}
@@ -690,24 +698,24 @@ func (self *Api) ResourceCreate(ctx context.Context, name string, frequency uint
 	return key, nil
 }
 
-func (self *Api) ResourceUpdateMultihash(ctx context.Context, name string, data []byte) (storage.Address, uint32, uint32, error) {
-	return self.resourceUpdate(ctx, name, data, true)
+func (self *Api) ResourceUpdateMultihash(ctx context.Context, addr storage.Address, data []byte) (storage.Address, uint32, uint32, error) {
+	return self.resourceUpdate(ctx, addr, data, true)
 }
-func (self *Api) ResourceUpdate(ctx context.Context, name string, data []byte) (storage.Address, uint32, uint32, error) {
-	return self.resourceUpdate(ctx, name, data, false)
+func (self *Api) ResourceUpdate(ctx context.Context, addr storage.Address, data []byte) (storage.Address, uint32, uint32, error) {
+	return self.resourceUpdate(ctx, addr, data, false)
 }
 
-func (self *Api) resourceUpdate(ctx context.Context, name string, data []byte, multihash bool) (storage.Address, uint32, uint32, error) {
-	var addr storage.Address
+func (self *Api) resourceUpdate(ctx context.Context, rootAddr storage.Address, data []byte, multihash bool) (storage.Address, uint32, uint32, error) {
+	var updateAddr storage.Address
 	var err error
 	if multihash {
-		addr, err = self.resource.UpdateMultihash(ctx, name, data)
+		updateAddr, err = self.resource.UpdateMultihash(ctx, rootAddr, data)
 	} else {
-		addr, err = self.resource.Update(ctx, name, data)
+		updateAddr, err = self.resource.Update(ctx, rootAddr, data)
 	}
-	period, _ := self.resource.GetLastPeriod(name)
-	version, _ := self.resource.GetVersion(name)
-	return addr, period, version, err
+	period, _ := self.resource.GetLastPeriod(rootAddr)
+	version, _ := self.resource.GetVersion(rootAddr)
+	return updateAddr, period, version, err
 }
 
 func (self *Api) ResourceHashSize() int {
