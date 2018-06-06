@@ -164,7 +164,7 @@ func TestReverse(t *testing.T) {
 }
 
 // make updates and retrieve them based on periods and versions
-func TestHandler(t *testing.T) {
+func TestResourceHandler(t *testing.T) {
 
 	// make fake backend, set up rpc and create resourcehandler
 	backend := &fakeBackend{
@@ -197,8 +197,8 @@ func TestHandler(t *testing.T) {
 	} else if len(chunk.SData) < 16 {
 		t.Fatalf("chunk data must be minimum 16 bytes, is %d", len(chunk.SData))
 	}
-	startblocknumber := binary.LittleEndian.Uint64(chunk.SData[2:10])
-	chunkfrequency := binary.LittleEndian.Uint64(chunk.SData[10:])
+	startblocknumber := binary.LittleEndian.Uint64(chunk.SData[:8])
+	chunkfrequency := binary.LittleEndian.Uint64(chunk.SData[8:16])
 	if startblocknumber != uint64(backend.blocknumber) {
 		t.Fatalf("stored block number %d does not match provided block number %d", startblocknumber, backend.blocknumber)
 	}
@@ -387,7 +387,7 @@ func TestMultihash(t *testing.T) {
 		t.Fatalf("Expected update to fail with last byte skipped")
 	}
 
-	data, err := getUpdateDirect(rh, swarmhashkey)
+	data, err := getUpdateDirect(rh.Handler, swarmhashkey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,7 +398,7 @@ func TestMultihash(t *testing.T) {
 	if !bytes.Equal(swarmhashdecode.Digest, swarmhashbytes.Bytes()) {
 		t.Fatalf("Decoded SHA1 hash '%x' does not match original hash '%x'", swarmhashdecode.Digest, swarmhashbytes.Bytes())
 	}
-	data, err = getUpdateDirect(rh, sha1key)
+	data, err = getUpdateDirect(rh.Handler, sha1key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,7 +437,7 @@ func TestMultihash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data, err = getUpdateDirect(rh2, swarmhashsignedkey)
+	data, err = getUpdateDirect(rh2.Handler, swarmhashsignedkey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestMultihash(t *testing.T) {
 	if !bytes.Equal(swarmhashdecode.Digest, swarmhashbytes.Bytes()) {
 		t.Fatalf("Decoded SHA1 hash '%x' does not match original hash '%x'", swarmhashdecode.Digest, swarmhashbytes.Bytes())
 	}
-	data, err = getUpdateDirect(rh2, sha1signedkey)
+	data, err = getUpdateDirect(rh2.Handler, sha1signedkey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -531,7 +531,7 @@ func TestValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 	chunk = rh.newMetaChunk(safeName, startBlock, resourceFrequency, publicKeyBytes)
-	if !rh.Validate(chunk.Addr, chunk.SData) {
+	if rh.Validate(chunk.Addr, chunk.SData) {
 		t.Fatal("Chunk validator fail on metadata chunk")
 	}
 }
@@ -614,8 +614,7 @@ func fwdBlocks(count int, backend *fakeBackend) {
 }
 
 // create rpc and resourcehandler
-//func setupTest(backend headerGetter, ensBackend *ens.ENS, signer Signer) (rh *Handler, datadir string, teardown func(), err error) {
-func setupTest(backend headerGetter, signer Signer) (rh *Handler, datadir string, teardown func(), err error) {
+func setupTest(backend headerGetter, signer Signer) (rh *TestHandler, datadir string, teardown func(), err error) {
 
 	var fsClean func()
 	var rpcClean func()
