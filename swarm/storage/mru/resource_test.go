@@ -109,9 +109,7 @@ func TestReverse(t *testing.T) {
 	defer teardownTest()
 
 	// generate a hash for block 4200 version 1
-	var publicKeyBytes [publicKeyLength]byte
-	copy(publicKeyBytes[:], crypto.FromECDSAPub(signer.PublicKey()))
-	key := rh.resourceHash(period, version, ens.EnsNode(safeName), publicKeyBytes)
+	key := rh.resourceHash(period, version, ens.EnsNode(safeName), signer.Address())
 
 	// generate some bogus data for the chunk and sign it
 	data := make([]byte, 8)
@@ -498,9 +496,7 @@ func TestValidator(t *testing.T) {
 
 	// chunk with address
 	data := []byte("foo")
-	var publicKeyBytes [publicKeyLength]byte
-	copy(publicKeyBytes[:], crypto.FromECDSAPub(signer.PublicKey()))
-	key = rh.resourceHash(1, 1, rsrc.nameHash, publicKeyBytes)
+	key = rh.resourceHash(1, 1, rsrc.nameHash, signer.Address())
 	digest := rh.keyDataHash(key, data)
 	sig, err := rh.signer.Sign(digest)
 	if err != nil {
@@ -512,8 +508,7 @@ func TestValidator(t *testing.T) {
 	}
 
 	// chunk with address made from different publickey
-	copy(publicKeyBytes[:], crypto.FromECDSAPub(falseSigner.PublicKey()))
-	key = rh.resourceHash(1, 1, rsrc.nameHash, publicKeyBytes)
+	key = rh.resourceHash(1, 1, rsrc.nameHash, falseSigner.Address())
 	digest = rh.keyDataHash(key, data)
 	sig, err = rh.signer.Sign(digest)
 	if err != nil {
@@ -530,7 +525,7 @@ func TestValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	chunk = rh.newMetaChunk(safeName, startBlock, resourceFrequency, publicKeyBytes)
+	chunk = rh.newMetaChunk(safeName, startBlock, resourceFrequency, signer.Address())
 	if rh.Validate(chunk.Addr, chunk.SData) {
 		t.Fatal("Chunk validator fail on metadata chunk")
 	}
@@ -552,8 +547,6 @@ func TestValidatorInStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var publicKeyBytes [publicKeyLength]byte
-	copy(publicKeyBytes[:], crypto.FromECDSAPub(signer.PublicKey()))
 
 	// set up localstore
 	datadir, err := ioutil.TempDir("", "storage-testresourcevalidator")
@@ -587,7 +580,7 @@ func TestValidatorInStore(t *testing.T) {
 	badChunk.SData = goodChunk.SData
 
 	// create a resource update chunk with correct publickey
-	key := rh.resourceHash(42, 1, ens.EnsNode("xyzzy.eth"), publicKeyBytes)
+	key := rh.resourceHash(42, 1, ens.EnsNode("xyzzy.eth"), signer.Address())
 	data := []byte("bar")
 	digestToSign := rh.keyDataHash(key, data)
 	digestSignature, err := signer.Sign(digestToSign)
@@ -652,9 +645,7 @@ func newTestSigner() (*GenericSigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &GenericSigner{
-		PrivKey: privKey,
-	}, nil
+	return NewGenericSigner(privKey), nil
 }
 
 func getUpdateDirect(rh *Handler, addr storage.Address) ([]byte, error) {
