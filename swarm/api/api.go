@@ -347,7 +347,6 @@ func (self *Api) Get(manifestAddr storage.Address, path string) (reader storage.
 			params := &mru.LookupParams{
 				Root: metadataChunkKey,
 			}
-			//rsrc, err = self.resource.LookupLatest(ctx, rsrc.NameHash(), true, &mru.LookupParams{})
 			rsrc, err = self.resource.Lookup(ctx, params)
 			if err != nil {
 				apiGetNotFound.Inc(1)
@@ -361,7 +360,6 @@ func (self *Api) Get(manifestAddr storage.Address, path string) (reader storage.
 			if rsrc.Multihash {
 
 				// get the data of the update
-				//_, rsrcData, err := self.resource.GetContent(rsrc.NameHash().Hex())
 				_, rsrcData, err := self.resource.GetContent(metadataChunkKey)
 				if err != nil {
 					apiGetNotFound.Inc(1)
@@ -667,22 +665,11 @@ func (self *Api) ResourceLookup(ctx context.Context, params *mru.LookupParams) (
 	if err != nil {
 		return "", nil, err
 	}
-	//	if version != 0 {
-	//		if period == 0 {
-	//			return "", nil, mru.NewError(mru.ErrInvalidValue, "Period can't be 0")
-	//		}
-	//		_, err = self.resource.LookupVersion(ctx, rsrc.NameHash(), period, version, true, maxLookup)
-	//	} else if period != 0 {
-	//		_, err = self.resource.LookupHistorical(ctx, rsrc.NameHash(), period, true, maxLookup)
-	//	} else {
-	//		_, err = self.resource.LookupLatest(ctx, rsrc.NameHash(), true, maxLookup)
-	//	}
 	_, err = self.resource.Lookup(ctx, params)
 	if err != nil {
 		return "", nil, err
 	}
 	var data []byte
-	//_, data, err = self.resource.GetContent(rsrc.NameHash().Hex())
 	_, data, err = self.resource.GetContent(params.Root)
 	if err != nil {
 		return "", nil, err
